@@ -122,6 +122,9 @@ namespace selfomat {
 
             void renderThread();
 
+            // Must be called with imageMutex held.
+            void updateSpriteTransforms();
+
             void setState(GUI_STATE newState);
 
             float easeOutSin(float t, float b, float c, float d);

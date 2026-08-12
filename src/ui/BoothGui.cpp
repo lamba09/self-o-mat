@@ -145,6 +145,11 @@ void BoothGui::renderThread() {
     settings.minorVersion = 1;
     auto style = fullscreen ? sf::Style::Fullscreen : sf::Style::Default;
 
+    // A fullscreen window only accepts modes the display actually supports. Asking for an
+    // unsupported one makes SFML fall back to a different resolution than we requested.
+    if (fullscreen)
+        videoMode = sf::VideoMode::getDesktopMode();
+
     window.create(videoMode, "self-o-mat", style, settings);
 
     window.setVerticalSyncEnabled(true);
@@ -183,6 +188,12 @@ void BoothGui::renderThread() {
     //finalImageSprite = sf::Sprite(imageTexture);
 
     window.setActive(true);
+
+    // Size everything for the window we actually got, before the first frame arrives.
+    imageMutex.lock();
+    updateSpriteTransforms();
+    imageMutex.unlock();
+
     sf::Event event{};
     stateTimer.restart();
     while (isRunning) {
@@ -190,6 +201,13 @@ void BoothGui::renderThread() {
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) {
                 window.close();
+            } else if (event.type == sf::Event::Resized) {
+                // Keep the coordinate system in sync with the window, otherwise SFML keeps
+                // stretching the old view over the resized window.
+                window.setView(sf::View(sf::FloatRect(0, 0, (float) event.size.width, (float) event.size.height)));
+                imageMutex.lock();
+                updateSpriteTransforms();
+                imageMutex.unlock();
             } else if(logicController != nullptr && event.type == sf::Event::MouseButtonPressed) {
                 if(event.mouseButton.button == sf::Mouse::Button::Left) {
                     if(logicController->isAgreementVisible()) {
@@ -212,65 +230,16 @@ void BoothGui::renderThread() {
             if (imageWidth > 0 && imageHeight > 0) {
                 auto textureSize = imageTexture.getSize();
                 if (textureSize.x != imageWidth || textureSize.y != imageHeight) {
-                    // Recreate the texture if needed
-                    if (imageWidth > textureSize.x || imageHeight > textureSize.y) {
-                        LOG_D(TAG, "Recreating texture to fit the new image");
-                        imageTexture.create(imageWidth, imageHeight);
+                    // The texture has to match the image exactly. A larger one keeps stale
+                    // pixels of the previous image around the new one.
+                    LOG_D(TAG, "Recreating texture to fit the new image");
+                    if (!imageTexture.create(imageWidth, imageHeight)) {
+                        LOG_E(TAG, "Could not create a texture for the new image");
                     }
                 }
 
-
-
-                // Calculate the sprite's new shape so that the image fits
-                float scaleX = (float) window.getSize().x / (float) imageWidth;
-                float scaleY = (float) window.getSize().y / (float) imageHeight;
-                float scale = max(scaleX, scaleY);
-
-                imageSprite.setScale(-scale, scale);
-
-                float windowCenterY = window.getSize().y / 2.0f;
-                float windowCenterX = window.getSize().x / 2.0f;
-
-                float imageCenterX = (float) imageWidth * scale * 0.5f;
-                float imageCenterY = (float) imageHeight * scale * 0.5f;
-
-
-                imageSprite.setPosition(videoMode.width - (windowCenterX - imageCenterX),
-                                        windowCenterY - imageCenterY);
-
-
-                if(templateEnabled && templateLoaded) {
-                    float finalOverlayCenterX =
-                            (float) finalOverlayOffsetX + (float) finalOverlayOffsetW / 2.0f;
-                    float finalOverlayCenterY =
-                            (float) finalOverlayOffsetY + (float) finalOverlayOffsetH / 2.0f;
-
-
-                    finalImageSprite.setTexture(imageTexture, true);
-                    finalImageSprite.setTextureRect(sf::IntRect(0, 0, imageWidth, imageHeight));
-
-                    // Same for the final sprite
-                    float finalScaleX = (float) finalOverlayOffsetW / (float) imageWidth;
-                    float finalScaleY =
-                            (float) finalOverlayOffsetH / (float) imageHeight;
-                    float finalScale = max(finalScaleX, finalScaleY);
-                    finalImageSprite.setScale(finalScale, finalScale);
-
-                    float finalImageCenterX = (float) imageWidth * finalScale * 0.5f;
-                    float finalImageCenterY = (float) imageHeight * finalScale * 0.5f;
-
-                    finalImageSprite.setPosition(finalOverlayCenterX - finalImageCenterX,
-                                                 finalOverlayCenterY - finalImageCenterY);
-
-                } else {
-                    finalImageSprite.setTexture(imageTexture, true);
-                    finalImageSprite.setTextureRect(sf::IntRect(0, 0, imageWidth, imageHeight));
-                    finalImageSprite.setScale(scale, scale);
-                    finalImageSprite.setPosition(windowCenterX - imageCenterX,
-                                            windowCenterY - imageCenterY);
-                }
-
                 imageTexture.update((sf::Uint8 *) imageBuffer, imageWidth, imageHeight, 0, 0);
+                updateSpriteTransforms();
                 imageDirty = false;
             }
             imageMutex.unlock();
@@ -461,6 +430,69 @@ void BoothGui::renderThread() {
     window.close();
 }
 
+void BoothGui::updateSpriteTransforms() {
+    auto windowSize = window.getSize();
+    float windowCenterX = windowSize.x / 2.0f;
+    float windowCenterY = windowSize.y / 2.0f;
+
+    rect_overlay.setSize(sf::Vector2f((float) windowSize.x, (float) windowSize.y));
+
+    // A full screen illustration, so it keeps its aspect ratio.
+    auto noCameraSize = textureNoCamera.getSize();
+    if (noCameraSize.x > 0 && noCameraSize.y > 0) {
+        float noCameraScale = min((float) windowSize.x / (float) noCameraSize.x,
+                                  (float) windowSize.y / (float) noCameraSize.y);
+        imageNoCamera.setScale(noCameraScale, noCameraScale);
+        imageNoCamera.setPosition(windowCenterX - (float) noCameraSize.x * noCameraScale * 0.5f,
+                                  windowCenterY - (float) noCameraSize.y * noCameraScale * 0.5f);
+    }
+
+    if (imageWidth == 0 || imageHeight == 0)
+        return;
+
+    // Scale so that the whole image is visible. Using max() instead would fill the
+    // window but crop the image, which no longer matches the captured photo.
+    float scale = min((float) windowSize.x / (float) imageWidth,
+                      (float) windowSize.y / (float) imageHeight);
+
+    float displayedWidth = (float) imageWidth * scale;
+    float displayedHeight = (float) imageHeight * scale;
+    float imageLeft = windowCenterX - displayedWidth * 0.5f;
+    float imageTop = windowCenterY - displayedHeight * 0.5f;
+
+    imageSprite.setTexture(imageTexture, true);
+    imageSprite.setTextureRect(sf::IntRect(0, 0, imageWidth, imageHeight));
+    // The live preview is mirrored, which puts the sprite's origin on its right edge.
+    imageSprite.setScale(-scale, scale);
+    imageSprite.setPosition(imageLeft + displayedWidth, imageTop);
+
+    // The viewfinder frames the preview, so it follows the image and not the window.
+    auto liveOverlaySize = textureLiveOverlay.getSize();
+    if (liveOverlaySize.x > 0 && liveOverlaySize.y > 0) {
+        imageSpriteLiveOverlay.setScale(displayedWidth / (float) liveOverlaySize.x,
+                                        displayedHeight / (float) liveOverlaySize.y);
+        imageSpriteLiveOverlay.setPosition(imageLeft, imageTop);
+    }
+
+    finalImageSprite.setTexture(imageTexture, true);
+    finalImageSprite.setTextureRect(sf::IntRect(0, 0, imageWidth, imageHeight));
+
+    if (templateEnabled && templateLoaded) {
+        // The image has to fill the cutout of the template, so it is cropped here.
+        float finalOverlayCenterX = (float) finalOverlayOffsetX + (float) finalOverlayOffsetW / 2.0f;
+        float finalOverlayCenterY = (float) finalOverlayOffsetY + (float) finalOverlayOffsetH / 2.0f;
+
+        float finalScale = max((float) finalOverlayOffsetW / (float) imageWidth,
+                               (float) finalOverlayOffsetH / (float) imageHeight);
+        finalImageSprite.setScale(finalScale, finalScale);
+        finalImageSprite.setPosition(finalOverlayCenterX - (float) imageWidth * finalScale * 0.5f,
+                                     finalOverlayCenterY - (float) imageHeight * finalScale * 0.5f);
+    } else {
+        finalImageSprite.setScale(scale, scale);
+        finalImageSprite.setPosition(imageLeft, imageTop);
+    }
+}
+
 void BoothGui::setState(GUI_STATE newState) {
     boost::unique_lock<boost::mutex> lk(guiStateMutex);
 
@@ -507,8 +539,13 @@ void BoothGui::drawPrintOverlay(float percentage) {
     window.draw(imageSpritePrintOverlay);
 
 
+    // The dots are centered as a group, just like the label above them.
+    const float dotSpacing = 113.0f;
+    float dotsStartX = ((float) window.getSize().x -
+                        (5.0f * dotSpacing + 2.0f * count_down_circle.getRadius())) / 2.0f;
+
     for(int i = 0; i < 6; i++) {
-        count_down_circle.setPosition(340.0f + i*(113.0f),templateY + 149.0f - 19.0f);
+        count_down_circle.setPosition(dotsStartX + i*dotSpacing, templateY + 149.0f - 19.0f);
         if(percentage == -1 || (percentage >= 1 && timeInState >= 500.0 * i)) {
             count_down_circle.setFillColor(COLOR_MAIN);
         } else {
