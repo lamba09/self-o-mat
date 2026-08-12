@@ -118,6 +118,9 @@ namespace selfomat {
             bool force_image_dir_mountpoint;
 
             int returnCode = 0;
+            // A photobooth box switches itself off when the software exits. On a development
+            // setup that would shut down the machine on every Ctrl-C.
+            bool powerOffOnExit = true;
             string imageDir;
 
             bool has_button, has_flash, disable_watchdog;
@@ -242,11 +245,15 @@ namespace selfomat {
                     printMonitoringThreadHandle.join();
                 }
 
-                if (returnCode == -1) {
+                if (returnCode == -1 && powerOffOnExit) {
                     reboot(LINUX_REBOOT_CMD_POWER_OFF);
                 }
 
                 return returnCode;
+            }
+
+            void setPowerOffOnExit(bool powerOffOnExit) {
+                this->powerOffOnExit = powerOffOnExit;
             }
 
             void stopForUpdate();
