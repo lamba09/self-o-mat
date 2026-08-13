@@ -335,7 +335,7 @@ void BoothGui::renderThread() {
 
                 drawPrintOverlay();
 
-                if (timeInState >= 2500) {
+                if (timeInState >= (float) printDecisionMillis) {
                     setState(STATE_FINAL_IMAGE_PRINT_CANCELED);
                 }
             }
@@ -544,9 +544,13 @@ void BoothGui::drawPrintOverlay(float percentage) {
     float dotsStartX = ((float) window.getSize().x -
                         (5.0f * dotSpacing + 2.0f * count_down_circle.getRadius())) / 2.0f;
 
+    // The six dots fill up over the decision window, the last one landing as it
+    // runs out, so the interval follows the configured duration.
+    float dotInterval = (float) printDecisionMillis / 5.0f;
+
     for(int i = 0; i < 6; i++) {
         count_down_circle.setPosition(dotsStartX + i*dotSpacing, templateY + 149.0f - 19.0f);
-        if(percentage == -1 || (percentage >= 1 && timeInState >= 500.0 * i)) {
+        if(percentage == -1 || (percentage >= 1 && timeInState >= dotInterval * i)) {
             count_down_circle.setFillColor(COLOR_MAIN);
         } else {
             count_down_circle.setFillColor(COLOR_MAIN_LIGHT);
@@ -819,6 +823,10 @@ void BoothGui::setPrinterEnabled(bool printerEnabled) {
 
 void BoothGui::setTemplateEnabled(bool templateEnabled) {
     this->templateEnabled = templateEnabled;
+}
+
+void BoothGui::setPrintDecisionMillis(int printDecisionMillis) {
+    this->printDecisionMillis = printDecisionMillis;
 }
 
 void BoothGui::cancelPrint() {

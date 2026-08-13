@@ -206,8 +206,10 @@ void BoothLogic::cameraThread() {
                         gui->notifyFinalImageSent();
                         selfomatController.showPrinting();
 
-                        // 4500ms from here for the user to decide
-                        boost::this_thread::sleep(boost::posix_time::milliseconds(4500));
+                        // The GUI shows the photo and slides the print bar in before the
+                        // decision window even starts, so the deadline has to outlast it.
+                        boost::this_thread::sleep(boost::posix_time::milliseconds(
+                                printDecisionMillis + PRINT_DECISION_LEAD_IN_MILLIS));
 
                         // Notify the printer thread
                         {

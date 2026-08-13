@@ -75,6 +75,8 @@ namespace selfomat {
 
             virtual void setTemplateEnabled(bool templateEnabled) = 0;
 
+            virtual void setPrintDecisionMillis(int printDecisionMillis) = 0;
+
             virtual void cancelPrint() = 0;
 
             virtual void confirmPrint() = 0;

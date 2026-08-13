@@ -145,6 +145,7 @@ int main(int argc, char *argv[]) {
     bool autofocus_before_trigger = false;
     bool fullscreen = true;
     bool power_off_on_exit = true;
+    int print_decision_millis = 2500;
     string button_port_name;
     string image_dir;
 
@@ -172,6 +173,7 @@ int main(int argc, char *argv[]) {
         autofocus_before_trigger = ptree.get<bool>("autofocus_before_trigger", false);
         fullscreen = ptree.get<bool>("fullscreen", true);
         power_off_on_exit = ptree.get<bool>("power_off_on_exit", true);
+        print_decision_millis = ptree.get<int>("print_decision_millis", 2500);
     } catch (boost::exception &e) {
         LOG_E(TAG, "Error loading properties. Using defaults.");
     }
@@ -183,6 +185,7 @@ int main(int argc, char *argv[]) {
     LOG_D(TAG, "Autofocus Before Trigger: ", std::to_string(autofocus_before_trigger));
     LOG_D(TAG, "Fullscreen: ", std::to_string(fullscreen));
     LOG_D(TAG, "Power off on exit: ", std::to_string(power_off_on_exit));
+    LOG_D(TAG, "Print decision millis: ", std::to_string(print_decision_millis));
 
 
     // We'll set the controller later when logic is initialized
@@ -208,6 +211,7 @@ int main(int argc, char *argv[]) {
     p_logic = new logic::BoothLogic(p_cam, p_gui, has_button, button_port_name, has_flash, image_dir, force_image_dir_mountpoint, disable_watchdog, show_led_setup, autofocus_before_trigger);
 
     p_logic->setPowerOffOnExit(power_off_on_exit);
+    p_logic->setPrintDecisionMillis(print_decision_millis);
 
     LOG_I(TAG, "Started Logic");
 

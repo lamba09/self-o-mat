@@ -59,6 +59,9 @@ namespace selfomat {
             bool printerEnabled;
             bool templateEnabled;
 
+            // How long the print bar stays up waiting for the user to decide.
+            int printDecisionMillis = 2500;
+
             bool shouldShowAgreement;
 
             GUI_STATE currentState;
@@ -194,6 +197,7 @@ namespace selfomat {
 
             void setPrinterEnabled(bool printerEnabled) override;
             void setTemplateEnabled(bool templateEnabled) override;
+            void setPrintDecisionMillis(int printDecisionMillis) override;
 
             void cancelPrint() override;
             void confirmPrint() override;

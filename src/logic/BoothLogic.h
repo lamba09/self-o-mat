@@ -121,6 +121,13 @@ namespace selfomat {
             // A photobooth box switches itself off when the software exits. On a development
             // setup that would shut down the machine on every Ctrl-C.
             bool powerOffOnExit = true;
+
+            // How long the user gets to confirm or cancel a print. The GUI spends this long
+            // showing the print bar; the lead-in covers the photo and the bar sliding in
+            // beforehand, plus a little grace so a press at the last moment still counts.
+            static const int PRINT_DECISION_LEAD_IN_MILLIS = 2000;
+            int printDecisionMillis = 2500;
+
             string imageDir;
 
             bool has_button, has_flash, disable_watchdog;
@@ -254,6 +261,11 @@ namespace selfomat {
 
             void setPowerOffOnExit(bool powerOffOnExit) {
                 this->powerOffOnExit = powerOffOnExit;
+            }
+
+            void setPrintDecisionMillis(int printDecisionMillis) {
+                this->printDecisionMillis = printDecisionMillis;
+                gui->setPrintDecisionMillis(printDecisionMillis);
             }
 
             void stopForUpdate();

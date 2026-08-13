@@ -9,5 +9,6 @@
   "show_led_setup": true,
   "force_image_dir_mountpoint": 0,
   "fullscreen": false,
-  "power_off_on_exit": false
+  "power_off_on_exit": false,
+  "print_decision_millis": 8000
 }
