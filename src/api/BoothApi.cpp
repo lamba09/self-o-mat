@@ -520,6 +520,12 @@ bool BoothApi::start() {
                 served::response::stock_reply(200, res);
             });
 
+    mux.handle("/confirm_print")
+            .post([this](served::response &res, const served::request &req) {
+                logic->confirmPrint();
+                served::response::stock_reply(200, res);
+            });
+
     mux.handle("/focus")
             .post([this](served::response &res, const served::request &req) {
                 if (camera->getState() != STATE_WORKING) {
