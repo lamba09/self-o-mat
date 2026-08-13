@@ -24,7 +24,8 @@
 #include <boost/asio/placeholders.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/bind.hpp>
-#include <boost/asio/deadline_timer.hpp>
+#include <boost/asio/steady_timer.hpp>
+#include <chrono>
 #include <iostream>
 #include <tools/verbose.h>
 
@@ -47,7 +48,7 @@ class blocking_reader
     boost::asio::serial_port& port;
     size_t timeout;
     char c;
-    boost::asio::deadline_timer timer;
+    boost::asio::steady_timer timer;
     bool read_error;
 
     // Called when an async read completes or has been cancelled
@@ -100,7 +101,7 @@ public:
 
         // After a timeout & cancel it seems we need
         // to do a reset for subsequent reads to work.
-        GET_IO_SERVICE(port).reset();
+        GET_IO_SERVICE(port).restart();
 
         // Asynchronously read 1 character.
         boost::asio::async_read(port, boost::asio::buffer(&c, 1),
@@ -114,7 +115,7 @@ public:
         port.write_some(boost::asio::buffer(request, request_size));
 
         // Setup a deadline time to implement our timeout.
-        timer.expires_from_now(boost::posix_time::milliseconds(timeout));
+        timer.expires_after(std::chrono::milliseconds(timeout));
         timer.async_wait(boost::bind(&blocking_reader::time_out,
                                      this, boost::asio::placeholders::error));
 

@@ -21,7 +21,7 @@ std::string SelfomatController::TAG = "SELFOMAT_CONTROLLER";
 bool SelfomatController::autoconnect(std::string searchPrefix) {
     LOG_D(TAG, "Searching controller. Prefix: ", searchPrefix);
 
-    boost::asio::io_service tmpIoService;
+    boost::asio::io_context tmpIoService;
     boost::asio::serial_port tmpSerialPort(tmpIoService);
     char c = 0;
 
@@ -409,7 +409,7 @@ void SelfomatController::stopBlocking() {
 void SelfomatController::ioThread() {
     LOG_I(TAG, "Controller Thread Started");
     while(isStarted) {
-        boost::asio::io_service::work work(io_service);
+        auto work = boost::asio::make_work_guard(io_service);
         io_service.run();
     }
     LOG_I(TAG, "Controller Thread stopped");

@@ -58,19 +58,26 @@ _Hint: `--recursive` is required to clone git submodules._
 Installation is simple - just follow these steps:
 
 1. Install the following dependencies:
-```sudo apt-get install git build-essential cmake libmagick++-dev libboost-all-dev libopencv-dev libsfml-dev libcups2-dev libprotobuf-dev protobuf-compiler libusb-dev automake autoconf pkg-config autopoint gettext libtool nasm libturbojpeg0-dev libasio-dev```
+```sudo apt-get install git build-essential cmake libmagick++-dev libboost-all-dev libopencv-dev libgphoto2-dev libcups2-dev libprotobuf-dev protobuf-compiler libusb-dev automake autoconf pkg-config autopoint gettext libtool nasm libturbojpeg0-dev libasio-dev```
 
-2. Get libgphoto2:
+2. Get SFML 2.x.
+
+   The code uses the SFML 2 API. Distributions that have moved on to SFML 3 ship an
+   incompatible header set, so on those you need to build 2.6 yourself and must not
+   install `libsfml-dev` alongside it:
 ```
-git clone https://github.com/gphoto/libgphoto2.git
-cd libgphoto2
-git checkout tags/libgphoto2-2_5_22-release
-autoreconf --install --symlink
-./configure
-make
-sudo make install
+git clone --branch 2.6.2 --depth 1 https://github.com/SFML/SFML.git
+cmake -S SFML -B SFML/build -DBUILD_SHARED_LIBS=ON
+cmake --build SFML/build
+sudo cmake --install SFML/build
 sudo ldconfig
 ```
+   On distributions that still package SFML 2, `sudo apt-get install libsfml-dev` is enough.
+
+   ⚠️ Use the distribution's libgphoto2 (`libgphoto2-dev`, installed above) rather than
+   building it from source. OpenCV is linked against the packaged version and resolves
+   versioned symbols such as `gp_port_info_list_get_info@LIBGPHOTO2_5_0` from it; a
+   self-built copy in `/usr/local` shadows it and the link fails.
 
 3. Build self-o-mat
 ```

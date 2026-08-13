@@ -1,0 +1,211 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4ca0357..ba5732b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -21,7 +21,7 @@
+ #
+ # Project Properties
+ #
+-CMAKE_MINIMUM_REQUIRED (VERSION 2.6.2)
++CMAKE_MINIMUM_REQUIRED (VERSION 3.5)
+ PROJECT (served)
+ SET (APPLICATION_NAME "Served HTTP REST Library")
+ SET (APPLICATION_CODENAME "${PROJECT_NAME}")
+@@ -68,7 +68,7 @@ INCLUDE_DIRECTORIES ("${MAINFOLDER}/src")
+ #
+ # Locate Project Prerequisites
+ #
+-FIND_PACKAGE (Boost 1.53 COMPONENTS "system" REQUIRED)
++FIND_PACKAGE (Boost 1.53 REQUIRED)
+ INCLUDE_DIRECTORIES (${Boost_INCLUDE_DIRS})
+ LINK_DIRECTORIES (${Boost_LIBRARY_DIRS})
+ 
+diff --git a/src/served/net/connection.cpp b/src/served/net/connection.cpp
+index 440dc68..6141324 100644
+--- a/src/served/net/connection.cpp
++++ b/src/served/net/connection.cpp
+@@ -25,13 +25,14 @@
+ #include <served/net/connection_manager.hpp>
+ #include <served/request_error.hpp>
+ 
++#include <chrono>
+ #include <utility>
+ #include <vector>
+ 
+ using namespace served;
+ using namespace served::net;
+ 
+-connection::connection( boost::asio::io_service &    io_service
++connection::connection( boost::asio::io_context &    io_context
+                       , boost::asio::ip::tcp::socket socket
+                       , connection_manager &         manager
+                       , multiplexer        &         handler
+@@ -39,7 +40,7 @@ connection::connection( boost::asio::io_service &    io_service
+                       , int                          read_timeout
+                       , int                          write_timeout
+                       )
+-	: _io_service(io_service)
++	: _io_context(io_context)
+ 	, _status(status_type::READING)
+ 	, _socket(std::move(socket))
+ 	, _connection_manager(manager)
+@@ -49,9 +50,12 @@ connection::connection( boost::asio::io_service &    io_service
+ 	, _write_timeout(write_timeout)
+ 	, _request()
+ 	, _request_parser(_request, _max_req_size_bytes)
+-	, _read_timer(_io_service, boost::posix_time::milliseconds(read_timeout))
+-	, _write_timer(_io_service, boost::posix_time::milliseconds(write_timeout))
+-{}
++	, _read_timer(_io_context)
++	, _write_timer(_io_context)
++{
++	_read_timer.expires_after(std::chrono::milliseconds(read_timeout));
++	_write_timer.expires_after(std::chrono::milliseconds(write_timeout));
++}
+ 
+ void
+ connection::start()
+diff --git a/src/served/net/connection.hpp b/src/served/net/connection.hpp
+index ca27a9b..92b1a62 100644
+--- a/src/served/net/connection.hpp
++++ b/src/served/net/connection.hpp
+@@ -49,7 +49,7 @@ public:
+ 	enum status_type { READING = 0, DONE };
+ 
+ private:
+-	boost::asio::io_service &    _io_service;
++	boost::asio::io_context &    _io_context;
+ 	status_type                  _status;
+ 	boost::asio::ip::tcp::socket _socket;
+ 	connection_manager &         _connection_manager;
+@@ -61,8 +61,8 @@ private:
+ 	request                      _request;
+ 	request_parser_impl          _request_parser;
+ 	response                     _response;
+-	boost::asio::deadline_timer  _read_timer;
+-	boost::asio::deadline_timer  _write_timer;
++	boost::asio::steady_timer     _read_timer;
++	boost::asio::steady_timer     _write_timer;
+ 
+ public:
+ 	connection& operator=(const connection&) = delete;
+@@ -72,7 +72,7 @@ public:
+ 	/*
+ 	 * Constructs a new connection.
+ 	 *
+-	 * @param io_service the boost::asio::io_service for managing async operations
++	 * @param io_context the boost::asio::io_context for managing async operations
+ 	 * @param socket the boost::asio socket for the connection
+ 	 * @param manager the connection manager that oversees this connection
+ 	 * @param handler the multiplexer responsible for routing requests
+@@ -80,7 +80,7 @@ public:
+ 	 * @param read_timer the timeout for reading, 0 is ignored
+ 	 * @param write_timer the timeout for writing, 0 is ignored
+ 	 */
+-	explicit connection( boost::asio::io_service &    io_service
++	explicit connection( boost::asio::io_context &    io_context
+ 	                   , boost::asio::ip::tcp::socket socket
+ 	                   , connection_manager &         manager
+ 	                   , multiplexer        &         handler
+diff --git a/src/served/net/server.cpp b/src/served/net/server.cpp
+index a1ebc62..e735f71 100644
+--- a/src/served/net/server.cpp
++++ b/src/served/net/server.cpp
+@@ -34,11 +34,11 @@ server::server( const std::string & address
+               , multiplexer       & mux
+               , bool              register_signals /* = true */
+               )
+-	: _io_service()
+-	, _signals(_io_service)
+-	, _acceptor(_io_service)
++	: _io_context()
++	, _signals(_io_context)
++	, _acceptor(_io_context)
+ 	, _connection_manager()
+-	, _socket(_io_service)
++	, _socket(_io_context)
+ 	, _request_handler(mux)
+ 	, _read_timeout(0)
+ 	, _write_timeout(0)
+@@ -60,8 +60,9 @@ server::server( const std::string & address
+ 	do_await_stop();
+ 
+ 	// Open the acceptor with the option to reuse the address (i.e. SO_REUSEADDR).
+-	boost::asio::ip::tcp::resolver resolver(_io_service);
+-	boost::asio::ip::tcp::endpoint endpoint = *resolver.resolve({address, port});
++	boost::asio::ip::tcp::resolver resolver(_io_context);
++	auto results = resolver.resolve(address, port);
++	boost::asio::ip::tcp::endpoint endpoint = results.begin()->endpoint();
+ 
+ 	_acceptor.open(endpoint.protocol());
+ 	_acceptor.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
+@@ -75,7 +76,7 @@ void
+ server::run(int n_threads /* = 1 */, bool block /* = true */)
+ {
+ 	/*
+-	 * The io_service::run() call will block until all asynchronous operations
++	 * The io_context::run() call will block until all asynchronous operations
+ 	 * have finished. While the server is running, there is always at least one
+ 	 * asynchronous operation outstanding: the asynchronous accept call waiting
+ 	 * for new incoming connections.
+@@ -86,7 +87,7 @@ server::run(int n_threads /* = 1 */, bool block /* = true */)
+ 		for ( int i = 0; i < n_threads; i++ )
+ 		{
+ 			v_threads.push_back(std::thread([this](){
+-				_io_service.run();
++				_io_context.run();
+ 			}));
+ 		}
+ 		for ( auto & thread : v_threads )
+@@ -106,7 +107,7 @@ server::run(int n_threads /* = 1 */, bool block /* = true */)
+ 	}
+ 	else
+ 	{
+-		_io_service.run();
++		_io_context.run();
+ 	}
+ }
+ 
+@@ -131,9 +132,9 @@ server::set_max_request_bytes(size_t num_bytes)
+ void
+ server::stop()
+ {
+-	if ( ! _io_service.stopped() )
++	if ( ! _io_context.stopped() )
+ 	{
+-		_io_service.stop();
++		_io_context.stop();
+ 	}
+ }
+ 
+@@ -151,7 +152,7 @@ server::do_accept()
+ 			if (!ec)
+ 			{
+ 				_connection_manager.start(
+-					std::make_shared<connection>( _io_service
++					std::make_shared<connection>( _io_context
+ 					                            , std::move(_socket)
+ 					                            , _connection_manager
+ 					                            , _request_handler
+@@ -171,7 +172,7 @@ server::do_await_stop()
+ 	_signals.async_wait(
+ 		[this](boost::system::error_code /*ec*/, int /*signo*/) {
+ 			/* The server is stopped by cancelling all outstanding asynchronous
+-			 * operations. Once all operations have finished the io_service::run()
++			 * operations. Once all operations have finished the io_context::run()
+ 			 * call will exit.
+ 			 */
+ 			_acceptor.close();
+diff --git a/src/served/net/server.hpp b/src/served/net/server.hpp
+index 9110fff..abb088c 100644
+--- a/src/served/net/server.hpp
++++ b/src/served/net/server.hpp
+@@ -40,7 +40,7 @@ namespace served { namespace net {
+  */
+ class server
+ {
+-	boost::asio::io_service        _io_service;
++	boost::asio::io_context        _io_context;
+ 	boost::asio::signal_set        _signals;
+ 	boost::asio::ip::tcp::acceptor _acceptor;
+ 	connection_manager             _connection_manager;

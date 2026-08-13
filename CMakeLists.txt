@@ -3,6 +3,9 @@ project(self_o_mat)
 
 set(CMAKE_CXX_STANDARD 14)
 
+# Asio only exposes the posix_time based timer interfaces when Boost.Date_Time is enabled.
+add_compile_definitions(BOOST_ASIO_HAS_BOOST_DATE_TIME)
+
 if(VERBOSE)
     message("Verbose is set, adding definition")
     add_definitions(-DVERBOSE)
@@ -21,7 +24,8 @@ find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED)
 if(Boost_FOUND)
     if(${Boost_VERSION} VERSION_GREATER_EQUAL 1.70)
-        find_package(Boost REQUIRED COMPONENTS system thread filesystem chrono)
+        # Boost.System is header-only from 1.69 on and ships no importable component.
+        find_package(Boost REQUIRED COMPONENTS thread filesystem chrono)
     else()
         find_package(Boost REQUIRED COMPONENTS system thread filesystem)
     endif()
@@ -38,6 +42,15 @@ include_directories(${CUPS_INCLUDE_DIR})
 include_directories(${Protobuf_INCLUDE_DIRS})
 include_directories(${Protobuf_INCLUDE_DIR})
 include_directories(dependencies/served/src)
+
+execute_process(COMMAND /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/patches/apply-dependency-patches.sh
+        RESULT_VARIABLE DEPENDENCY_PATCH_RESULT
+        OUTPUT_VARIABLE DEPENDENCY_PATCH_OUTPUT
+        ERROR_VARIABLE DEPENDENCY_PATCH_OUTPUT)
+message("${DEPENDENCY_PATCH_OUTPUT}")
+if(NOT DEPENDENCY_PATCH_RESULT EQUAL 0)
+    message(FATAL_ERROR "Could not patch the vendored dependencies")
+endif()
 
 OPTION (SERVED_BUILD_TESTS "Build served unit test suite" OFF)
 OPTION (SERVED_BUILD_EXAMPLES "Build served  examples" OFF)

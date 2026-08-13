@@ -7,7 +7,7 @@
 
 #include "ILogicController.h"
 #include <stdint.h>
-#include <boost/asio/io_service.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/serial_port.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread.hpp>
@@ -73,7 +73,7 @@ namespace selfomat {
             ILogicController *logic;
             boost::crc_ccitt_type crc16;
             boost::asio::streambuf serialBuffer;
-            boost::asio::io_service io_service;
+            boost::asio::io_context io_service;
             boost::asio::serial_port button_serial_port;
             boost::thread controllerThreadHandle;
 
