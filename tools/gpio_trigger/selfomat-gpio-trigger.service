@@ -1,0 +1,19 @@
+[Unit]
+Description=self-o-mat GPIO trigger panel
+Documentation=file:/home/mario/self-o-mat/tools/gpio_trigger/README.md
+After=network.target
+
+[Service]
+# Adjust User and the path if your checkout lives elsewhere.
+User=mario
+ExecStart=/home/mario/self-o-mat/tools/gpio_trigger/selfomat_gpio_trigger.py
+# /dev/gpiochip0 is owned by group dialout. Granting it here rather than adding
+# the user to dialout keeps the privilege with this service, and works with no
+# graphical session: the ACL that normally opens the chip up comes from udev's
+# uaccess tag and only exists while somebody is logged in locally.
+SupplementaryGroups=dialout
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

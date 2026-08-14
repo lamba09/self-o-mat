@@ -35,6 +35,10 @@
 build/**
 cmake-build-*/**
 
+# Python bytecode
+__pycache__/
+*.pyc
+
 # protobuf build dir
 src/protobuf/**
 
