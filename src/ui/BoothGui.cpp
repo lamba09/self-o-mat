@@ -327,15 +327,17 @@ void BoothGui::renderThread() {
                 break;
             case STATE_FINAL_IMAGE_PRINT: {
                 float timeInState = stateTimer.getElapsedTime().asMilliseconds();
+                bool needsConfirmation = logicController != nullptr
+                        && logicController->getPrintConfirmationEnabled();
 
                 window.draw(finalImageSprite);
                 if(templateEnabled && templateLoaded) {
                     window.draw(imageSpriteFinalOverlay);
                 }
 
-                drawPrintOverlay();
+                drawPrintOverlay(needsConfirmation ? -1.0f : 1.0f);
 
-                if (timeInState >= (float) printDecisionMillis) {
+                if (!needsConfirmation && timeInState >= (float) printDecisionMillis) {
                     setState(STATE_FINAL_IMAGE_PRINT_CANCELED);
                 }
             }

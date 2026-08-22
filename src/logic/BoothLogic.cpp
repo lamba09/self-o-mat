@@ -206,16 +206,15 @@ void BoothLogic::cameraThread() {
                         gui->notifyFinalImageSent();
                         selfomatController.showPrinting();
 
-                        // The GUI shows the photo and slides the print bar in before the
-                        // decision window even starts, so the deadline has to outlast it.
-                        boost::this_thread::sleep(boost::posix_time::milliseconds(
-                                printDecisionMillis + PRINT_DECISION_LEAD_IN_MILLIS));
-
-                        // Notify the printer thread
-                        {
+                        if (printConfirmationEnabled && printerEnabled) {
                             boost::unique_lock<boost::mutex> lk(printerStateMutex);
-                            printerState = PRINTER_STATE_WORKING;
-                            printerStateCV.notify_all();
+                            while (printerState == PRINTER_STATE_WAITING_FOR_USER_INPUT) {
+                                printerStateCV.wait(lk);
+                            }
+                        } else {
+                            boost::this_thread::sleep(boost::posix_time::milliseconds(
+                                    printDecisionMillis + PRINT_DECISION_LEAD_IN_MILLIS));
+                            signalPrintDecisionComplete();
                         }
 
                         if (printerEnabled) {
@@ -369,6 +368,7 @@ bool BoothLogic::cancelPrint() {
     printCanceled = true;
     gui->cancelPrint();
     cancelOrConfirmPrintMutex.unlock();
+    signalPrintDecisionComplete();
     return true;
 }
 
@@ -384,7 +384,16 @@ bool BoothLogic::confirmPrint() {
     printConfirmed = true;
     gui->confirmPrint();
     cancelOrConfirmPrintMutex.unlock();
+    signalPrintDecisionComplete();
     return true;
+}
+
+void BoothLogic::signalPrintDecisionComplete() {
+    boost::unique_lock<boost::mutex> lk(printerStateMutex);
+    if (printerState == PRINTER_STATE_WAITING_FOR_USER_INPUT) {
+        printerState = PRINTER_STATE_WORKING;
+        printerStateCV.notify_all();
+    }
 }
 
 void BoothLogic::printerThread() {

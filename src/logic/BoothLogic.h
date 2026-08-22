@@ -217,6 +217,8 @@ namespace selfomat {
 
             int difftimeSeconds(time_t later, time_t earlier);
 
+            void signalPrintDecisionComplete();
+
             timespec triggerStart;
 
             std::list<ImagePrintMetrics> printMetrics;
