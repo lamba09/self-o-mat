@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=self-o-mat
+GenericName=Photobooth
+Comment=Start the self-o-mat photobooth
+Exec=@LAUNCHER@
+Icon=self-o-mat
+Path=@BUILD@
+Terminal=false
+Categories=Graphics;Photography;Utility;
+StartupNotify=true
+StartupWMClass=self_o_mat.app
+Keywords=photobooth;camera;print;
