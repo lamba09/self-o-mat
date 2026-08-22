@@ -24,10 +24,13 @@ yours is wired the other way round.
 
 ## Behaviour
 
-- Trigger posts `/trigger`, then ignores further presses for `--dead-time`
-  (55 s by default).
+- Trigger posts `/trigger`. When printing is on, further presses are ignored for
+  `--dead-time` (55 s by default) so the print queue cannot pile up. With printing
+  off there is no dead time. The booth rejects triggers with HTTP 503 while the
+  captured image is still on screen.
 - The switch sets the printer enabled flag at startup and whenever it is flipped.
-  A change in the web UI lasts until the next flip.
+  A change in the web UI lasts until the next flip. Turning printing off also
+  clears any remaining dead time.
 - Confirm posts `/confirm_print`. That only matters with "Additionally confirm
   print with a button press" enabled; the booth's `print_decision_millis` is the
   window in which a press counts.

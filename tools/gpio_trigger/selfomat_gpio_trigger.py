@@ -93,8 +93,8 @@ def parse_args():
     parser.add_argument("--api", default="http://127.0.0.1:9080",
                         help="base URL of the self-o-mat API")
     parser.add_argument("--dead-time", type=float, default=55.0, metavar="SECONDS",
-                        help="how long to ignore the trigger after a capture, so "
-                             "prints cannot pile up in the queue")
+                        help="how long to ignore the trigger after a capture when "
+                             "printing is on, so prints cannot pile up in the queue")
     parser.add_argument("--dry-run", action="store_true",
                         help="log requests instead of sending them, to check wiring")
     parser.add_argument("--verbose", action="store_true")
@@ -152,7 +152,8 @@ def main():
         # agree. Beyond that only changes are sent: the booth persists the
         # setting to disk on every request, and it reloads it on startup, so
         # resending periodically would just wear out the card.
-        wanted_printing = printing_from_switch(switch_closed)
+        printing_enabled = printing_from_switch(switch_closed)
+        wanted_printing = printing_enabled
         next_attempt = 0.0
         busy_until = 0.0
 
@@ -168,7 +169,7 @@ def main():
                     LOG.warning("could not set printing (status %s), retrying", status)
                     next_attempt = now + RETRY_SECONDS
 
-            busy = now < busy_until
+            busy = printing_enabled and now < busy_until
             lines.set_value(BUSY_LED_LINE, Value.ACTIVE if busy else Value.INACTIVE)
             lines.set_value(READY_LED_LINE, Value.INACTIVE if busy else Value.ACTIVE)
 
@@ -195,8 +196,11 @@ def main():
             )
 
             if switch_closed != was_closed:
-                wanted_printing = printing_from_switch(switch_closed)
+                printing_enabled = printing_from_switch(switch_closed)
+                wanted_printing = printing_enabled
                 next_attempt = 0.0
+                if not printing_enabled:
+                    busy_until = 0.0
 
             if confirm_pressed and not was_confirming:
                 # Only meaningful while the booth waits for a decision; outside that
@@ -221,8 +225,11 @@ def main():
 
                 status = api.trigger()
                 if status == 200:
-                    LOG.info("triggered")
-                    busy_until = time.monotonic() + args.dead_time
+                    if printing_enabled:
+                        busy_until = time.monotonic() + args.dead_time
+                        LOG.info("triggered, dead time %.0fs", args.dead_time)
+                    else:
+                        LOG.info("triggered (printing off, no dead time)")
                 elif status == 503:
                     LOG.warning("booth is not ready to capture")
                 else:
