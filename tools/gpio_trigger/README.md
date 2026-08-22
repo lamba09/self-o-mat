@@ -32,10 +32,12 @@ yours is wired the other way round.
   A change in the web UI lasts until the next flip. Turning printing off also
   clears any remaining dead time.
 - Confirm posts `/confirm_print`. That only matters with "Additionally confirm
-  print with a button press" enabled; the booth's `print_decision_millis` is the
-  window in which a press counts.
-- Cancel posts `/cancel_print`. With confirmation off, that is how you skip a
-  print; with it on, it is the counterpart to confirm.
+  print with a button press" enabled; the booth keeps the preview open until
+  confirm or cancel. Returns 409 once the job has already been queued.
+- Cancel posts `/cancel_print`. With confirmation off, that skips a print within
+  `print_decision_millis`; with it on, it is the counterpart to confirm. A
+  successful cancel (HTTP 200) also clears the print dead time; 409 means it
+  was already too late.
 - Ready LED: a trigger would be accepted. Busy LED: dead time.
 - Capture is immediate. There is no countdown.
 

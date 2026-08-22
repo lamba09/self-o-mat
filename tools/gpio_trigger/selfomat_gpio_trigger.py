@@ -203,18 +203,21 @@ def main():
                     busy_until = 0.0
 
             if confirm_pressed and not was_confirming:
-                # Only meaningful while the booth waits for a decision; outside that
-                # window the flag it sets is cleared by the next capture.
                 status = api.confirm_print()
                 if status == 200:
                     LOG.info("print confirmed")
+                elif status == 409:
+                    LOG.info("confirm ignored, print decision already closed")
                 else:
                     LOG.error("confirming the print failed (status %s)", status)
 
             if cancel_pressed and not was_cancelling:
                 status = api.cancel_print()
                 if status == 200:
-                    LOG.info("print canceled")
+                    busy_until = 0.0
+                    LOG.info("print canceled, dead time cleared")
+                elif status == 409:
+                    LOG.info("cancel ignored, print decision already closed")
                 else:
                     LOG.error("canceling the print failed (status %s)", status)
 
