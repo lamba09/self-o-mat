@@ -519,13 +519,19 @@ bool BoothApi::start() {
 
     mux.handle("/cancel_print")
             .post([this](served::response &res, const served::request &req) {
-                logic->cancelPrint();
+                if (!logic->cancelPrint()) {
+                    served::response::stock_reply(409, res);
+                    return;
+                }
                 served::response::stock_reply(200, res);
             });
 
     mux.handle("/confirm_print")
             .post([this](served::response &res, const served::request &req) {
-                logic->confirmPrint();
+                if (!logic->confirmPrint()) {
+                    served::response::stock_reply(409, res);
+                    return;
+                }
                 served::response::stock_reply(200, res);
             });
 

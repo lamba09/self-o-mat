@@ -226,8 +226,8 @@ namespace selfomat {
             bool trigger();
 
             void acceptAgreement();
-            void cancelPrint();
-            void confirmPrint();
+            bool cancelPrint();
+            bool confirmPrint();
             bool start();
 
             void stop(bool update_mode);

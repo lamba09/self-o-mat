@@ -357,18 +357,34 @@ bool BoothLogic::trigger() {
     return true;
 }
 
-void BoothLogic::cancelPrint() {
+bool BoothLogic::cancelPrint() {
+    {
+        boost::unique_lock<boost::mutex> lk(printerStateMutex);
+        if (printerState != PRINTER_STATE_WAITING_FOR_USER_INPUT) {
+            return false;
+        }
+    }
+
     cancelOrConfirmPrintMutex.lock();
     printCanceled = true;
     gui->cancelPrint();
     cancelOrConfirmPrintMutex.unlock();
+    return true;
 }
 
-void BoothLogic::confirmPrint() {
+bool BoothLogic::confirmPrint() {
+    {
+        boost::unique_lock<boost::mutex> lk(printerStateMutex);
+        if (printerState != PRINTER_STATE_WAITING_FOR_USER_INPUT) {
+            return false;
+        }
+    }
+
     cancelOrConfirmPrintMutex.lock();
     printConfirmed = true;
     gui->confirmPrint();
     cancelOrConfirmPrintMutex.unlock();
+    return true;
 }
 
 void BoothLogic::printerThread() {
