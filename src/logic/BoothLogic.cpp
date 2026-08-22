@@ -334,9 +334,19 @@ BoothLogic::~BoothLogic() {
     free(imageBuffer);
 }
 
-void BoothLogic::trigger() {
+bool BoothLogic::trigger() {
     if (showAgreement)
-        return;
+        return false;
+
+    // While the final image is on screen (or we are still fading back to live
+    // preview), a second press must not queue another capture. That lockout
+    // belongs here rather than in an external trigger panel, because only the
+    // GUI knows when the replay has finished.
+    auto guiState = gui->getCurrentGuiState();
+    if (guiState != ui::STATE_LIVE_PREVIEW) {
+        LOG_D(TAG, "Trigger ignored; GUI is not in live preview");
+        return false;
+    }
 
     clock_gettime(CLOCK_MONOTONIC, &triggerStart);
 
@@ -344,6 +354,7 @@ void BoothLogic::trigger() {
     triggered = true;
     triggerMutex.unlock();
     incTriggerCounter();
+    return true;
 }
 
 void BoothLogic::cancelPrint() {

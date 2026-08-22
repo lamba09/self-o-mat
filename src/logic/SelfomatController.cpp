@@ -363,12 +363,12 @@ void SelfomatController::setStressTestEnabled(bool enabled) {
     }
 }
 
-void SelfomatController::remoteTrigger() {
+bool SelfomatController::remoteTrigger() {
     if (!isConnected) {
-        logic->trigger();
-    } else {
-        sendCommand('t');
+        return logic != nullptr && logic->trigger();
     }
+    sendCommand('t');
+    return true;
 }
 
 uint8_t SelfomatController::getLedType() {

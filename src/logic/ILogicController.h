@@ -7,7 +7,7 @@ namespace selfomat {
     namespace logic {
         class ILogicController {
         public:
-            virtual void trigger() = 0;
+            virtual bool trigger() = 0;
             virtual void acceptAgreement() = 0;
             virtual void cancelPrint() = 0;
             virtual void confirmPrint() = 0;

@@ -510,7 +510,10 @@ bool BoothApi::start() {
                 }
 
                 auto controller = logic->getSelfomatController();
-                controller->remoteTrigger();
+                if (!controller->remoteTrigger()) {
+                    served::response::stock_reply(503, res);
+                    return;
+                }
                 served::response::stock_reply(200, res);
             });
 

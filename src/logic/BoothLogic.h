@@ -223,7 +223,7 @@ namespace selfomat {
             boost::mutex printMetricsMutex;
         public:
             bool isStopped();
-            void trigger();
+            bool trigger();
 
             void acceptAgreement();
             void cancelPrint();

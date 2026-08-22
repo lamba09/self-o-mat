@@ -126,7 +126,7 @@ namespace selfomat {
 
             void showAgreement();
 
-            void remoteTrigger();
+            bool remoteTrigger();
 
             void sendHeartbeat();
 
