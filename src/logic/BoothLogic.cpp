@@ -838,6 +838,7 @@ void BoothLogic::writeSettings() {
     ptree.put("trigger_counter", triggerCounter);
     ptree.put("storage_enabled", storageEnabled);
     ptree.put("printer_enabled", printerEnabled);
+    ptree.put("print_confirmation_enabled", printConfirmationEnabled);
     ptree.put("template_enabled", templateEnabled);
     ptree.put("flash_enabled", this->flashEnabled);
     ptree.put("filter_gain", filterGain);
