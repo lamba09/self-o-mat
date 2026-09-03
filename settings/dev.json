@@ -10,5 +10,10 @@
   "force_image_dir_mountpoint": 0,
   "fullscreen": false,
   "power_off_on_exit": false,
-  "print_decision_millis": 8000
+  "print_decision_millis": 8000,
+  "print_options": {
+    "media": "om_postcard.borderless_100x148mm",
+    "print-scaling": "fill",
+    "print-color-mode": "color"
+  }
 }

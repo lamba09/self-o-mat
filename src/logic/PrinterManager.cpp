@@ -211,8 +211,41 @@ int PrinterManager::printImage() {
 
     resumePrinter();
 
+    int num_options = 0;
+    cups_option_t *options = nullptr;
+    for (const auto &option : printOptions) {
+        LOG_D(TAG, "Print option: ", option.first + "=" + option.second);
+        num_options = cupsAddOption(option.first.c_str(), option.second.c_str(), num_options, &options);
+    }
+
+    // The CUPS command line tools and print dialogs add the queue's default options to every job,
+    // but cupsCreateJob() does not. A job without a media size leaves the paper choice to the
+    // printer, and printers that can only print one loaded media (e.g. dye-sub photo printers)
+    // eject a blank sheet when their guess does not match. So fill in the queue default ourselves.
+    if (cupsGetOption(CUPS_MEDIA, num_options, options) == nullptr &&
+        cupsGetOption("PageSize", num_options, options) == nullptr) {
+        cups_dest_t *dest = cupsGetNamedDest(CUPS_HTTP_DEFAULT, printer_name.c_str(), nullptr);
+        if (dest != nullptr) {
+            cups_dinfo_t *destInfo = cupsCopyDestInfo(CUPS_HTTP_DEFAULT, dest);
+            if (destInfo != nullptr) {
+                ipp_attribute_t *mediaDefault = cupsFindDestDefault(CUPS_HTTP_DEFAULT, dest, destInfo, CUPS_MEDIA);
+                const char *media = mediaDefault != nullptr ? ippGetString(mediaDefault, 0, nullptr) : nullptr;
+                if (media != nullptr) {
+                    LOG_D(TAG, "Using the queue's default media: ", media);
+                    num_options = cupsAddOption(CUPS_MEDIA, media, num_options, &options);
+                } else {
+                    LOG_E(TAG, "The queue advertises no default media. The printer may output a blank page.");
+                }
+                cupsFreeDestInfo(destInfo);
+            }
+            cupsFreeDests(1, dest);
+        }
+    }
+
     // Job ID or 0 on error
-    int job_id = cupsCreateJob(CUPS_HTTP_DEFAULT, printer_name.c_str(), "self-o-mat", 0, nullptr);
+    int job_id = cupsCreateJob(CUPS_HTTP_DEFAULT, printer_name.c_str(), "self-o-mat", num_options, options);
+
+    cupsFreeOptions(num_options, options);
 
     if (job_id > 0) {
         LOG_D(TAG, "successfully created the print job");

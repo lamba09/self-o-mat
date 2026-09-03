@@ -10,6 +10,7 @@
 #include <tools/readfile.h>
 #include <tools/verbose.h>
 
+#include <map>
 #include <sstream>
 #include <iostream>
 #include <spdlog/spdlog.h>
@@ -148,6 +149,7 @@ int main(int argc, char *argv[]) {
     int print_decision_millis = 2500;
     string button_port_name;
     string image_dir;
+    std::map<string, string> print_options;
 
 
 
@@ -174,6 +176,12 @@ int main(int argc, char *argv[]) {
         fullscreen = ptree.get<bool>("fullscreen", true);
         power_off_on_exit = ptree.get<bool>("power_off_on_exit", true);
         print_decision_millis = ptree.get<int>("print_decision_millis", 2500);
+        auto print_options_node = ptree.get_child_optional("print_options");
+        if (print_options_node) {
+            for (const auto &option : *print_options_node) {
+                print_options[option.first] = option.second.get_value<std::string>();
+            }
+        }
     } catch (boost::exception &e) {
         LOG_E(TAG, "Error loading properties. Using defaults.");
     }
@@ -186,6 +194,9 @@ int main(int argc, char *argv[]) {
     LOG_D(TAG, "Fullscreen: ", std::to_string(fullscreen));
     LOG_D(TAG, "Power off on exit: ", std::to_string(power_off_on_exit));
     LOG_D(TAG, "Print decision millis: ", std::to_string(print_decision_millis));
+    for (const auto &option : print_options) {
+        LOG_D(TAG, "Print option: ", option.first + "=" + option.second);
+    }
 
 
     // We'll set the controller later when logic is initialized
@@ -212,6 +223,7 @@ int main(int argc, char *argv[]) {
 
     p_logic->setPowerOffOnExit(power_off_on_exit);
     p_logic->setPrintDecisionMillis(print_decision_millis);
+    p_logic->setPrintOptions(print_options);
 
     LOG_I(TAG, "Started Logic");
 

@@ -270,6 +270,10 @@ namespace selfomat {
                 gui->setPrintDecisionMillis(printDecisionMillis);
             }
 
+            void setPrintOptions(const std::map<std::string, std::string> &printOptions) {
+                printerManager.setPrintOptions(printOptions);
+            }
+
             void stopForUpdate();
 
             virtual ~BoothLogic();

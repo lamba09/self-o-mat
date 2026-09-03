@@ -10,6 +10,8 @@
 #include <cups/ipp.h>
 #include <cups/adminutil.h>
 #include <iostream>
+#include <map>
+#include <string>
 #include <opencv2/opencv.hpp>
 #include "../tools/buffers.h"
 
@@ -54,6 +56,11 @@ namespace selfomat {
 
             std::string printer_name;
 
+            // CUPS options sent with every job. Without them the printer falls back to its own
+            // defaults, which on media-specific printers (e.g. dye-sub photo printers) does not
+            // have to match the loaded paper and then yields blank sheets.
+            std::map<std::string, std::string> printOptions;
+
             void *imageTmpBuffer = nullptr;
             size_t imageTmpBufferSize = 0;
 
@@ -73,6 +80,10 @@ namespace selfomat {
             const std::vector<std::string>& getCurrentStateReasons() {
                 boost::unique_lock<boost::mutex> lk(printerStateMutex);
                 return currentStateReasons;
+            }
+
+            void setPrintOptions(const std::map<std::string, std::string> &options) {
+                printOptions = options;
             }
 
             bool refreshCupsDevices();

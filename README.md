@@ -93,6 +93,19 @@ make
 
 5. Edit settings/dev.json to match your setup. It should work with an Arduino Nano by default.
 
+   If your printer needs specific options, list them under `print_options`. They are passed to
+   CUPS verbatim, so the names and values are the ones `lpoptions -p <printer> -l` reports:
+```
+  "print_options": {
+    "media": "om_postcard.borderless_100x148mm",
+    "print-scaling": "fill",
+    "print-color-mode": "color"
+  }
+```
+   When no media is configured the queue's default media is used. Printers that can only print
+   the one media they have loaded — dye-sub photo printers such as the Canon SELPHY series —
+   output a blank sheet if neither matches the paper in the cassette.
+
 6. Run the self-o-mat photo-booth software:
 ```
 #setup your installation
