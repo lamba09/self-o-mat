@@ -11,14 +11,19 @@ APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 ICONS="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor"
 DESKTOP_ID=self-o-mat.desktop
 
+AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
+
 PIN=0
+AUTO=0
 for arg in "$@"; do
     case "$arg" in
         --pin) PIN=1 ;;
+        --autostart) AUTO=1 ;;
         -h|--help)
-            echo "Usage: $0 [--pin]"
+            echo "Usage: $0 [--pin] [--autostart]"
             echo "  Installs self-o-mat.desktop into $APPS"
-            echo "  --pin  also add it to the GNOME dock / sidebar"
+            echo "  --pin        also add it to the GNOME dock / sidebar"
+            echo "  --autostart  also launch it when the desktop session starts"
             exit 0
             ;;
         *)
@@ -70,4 +75,15 @@ if [ "$PIN" -eq 1 ]; then
             echo "Pinned to the dock"
             ;;
     esac
+fi
+
+if [ "$AUTO" -eq 1 ]; then
+    # A plain copy of the menu entry in ~/.config/autostart is all XDG desktops
+    # (GNOME, Xfce, etc.) need to launch it once the user session starts. This
+    # only fires after a real login (auto-login counts), so it needs no extra
+    # delay or display juggling: the session already has DISPLAY/WAYLAND_DISPLAY
+    # set by the time autostart entries run.
+    mkdir -p "$AUTOSTART"
+    cp "$APPS/$DESKTOP_ID" "$AUTOSTART/$DESKTOP_ID"
+    echo "Enabled autostart: $AUTOSTART/$DESKTOP_ID"
 fi
