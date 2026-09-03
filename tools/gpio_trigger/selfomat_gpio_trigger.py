@@ -10,6 +10,7 @@ self-o-mat with "has_button": false alongside this.
 import argparse
 import logging
 import signal
+import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -27,8 +28,11 @@ TRIGGER_LINE = 17
 SWITCH_LINE = 27
 CONFIRM_LINE = 24
 CANCEL_LINE = 25
+SHUTDOWN_LINE = 5
 READY_LED_LINE = 22
 BUSY_LED_LINE = 23
+
+SHUTDOWN_HOLD_SECONDS = 3.0
 
 # The switch selected "test image" mode on the board this replaces: closed meant
 # take pictures but do not print. Set True if yours is wired the other way round.
@@ -88,6 +92,24 @@ def printing_from_switch(switch_closed):
     return not switch_closed
 
 
+def request_app_shutdown(dry_run=False):
+    """Ask self-o-mat to exit the same way Ctrl-C would."""
+    if dry_run:
+        LOG.info("would send SIGINT to self_o_mat.app")
+        return True
+
+    result = subprocess.run(
+        ["pkill", "-INT", "-f", "self_o_mat.app"],
+        check=False,
+    )
+    if result.returncode == 0:
+        LOG.info("sent SIGINT to self-o-mat")
+        return True
+
+    LOG.warning("self-o-mat is not running")
+    return False
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--api", default="http://127.0.0.1:9080",
@@ -97,6 +119,9 @@ def parse_args():
                              "printing is on, so prints cannot pile up in the queue")
     parser.add_argument("--dry-run", action="store_true",
                         help="log requests instead of sending them, to check wiring")
+    parser.add_argument("--shutdown-hold", type=float, default=SHUTDOWN_HOLD_SECONDS,
+                        metavar="SECONDS",
+                        help="how long the shutdown button must stay pressed")
     parser.add_argument("--verbose", action="store_true")
     return parser.parse_args()
 
@@ -136,6 +161,7 @@ def main():
             SWITCH_LINE: button,
             CONFIRM_LINE: button,
             CANCEL_LINE: button,
+            SHUTDOWN_LINE: button,
             READY_LED_LINE: led,
             BUSY_LED_LINE: led,
         },
@@ -156,6 +182,8 @@ def main():
         wanted_printing = printing_enabled
         next_attempt = 0.0
         busy_until = 0.0
+        shutdown_hold_since = None
+        shutdown_sent = False
 
         while running:
             now = time.monotonic()
@@ -172,6 +200,21 @@ def main():
             busy = printing_enabled and now < busy_until
             lines.set_value(BUSY_LED_LINE, Value.ACTIVE if busy else Value.INACTIVE)
             lines.set_value(READY_LED_LINE, Value.INACTIVE if busy else Value.ACTIVE)
+
+            shutdown_pressed = lines.get_value(SHUTDOWN_LINE) == Value.ACTIVE
+            if shutdown_pressed:
+                if shutdown_hold_since is None:
+                    shutdown_hold_since = now
+                    shutdown_sent = False
+                elif (
+                    not shutdown_sent
+                    and now - shutdown_hold_since >= args.shutdown_hold
+                ):
+                    if request_app_shutdown(args.dry_run):
+                        shutdown_sent = True
+            else:
+                shutdown_hold_since = None
+                shutdown_sent = False
 
             try:
                 if not lines.wait_edge_events(POLL_INTERVAL):

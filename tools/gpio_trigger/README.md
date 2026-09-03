@@ -16,6 +16,7 @@ them to ground. LEDs need a series resistor to ground.
 | Print switch | 13 | 27 |
 | Confirm print | 18 | 24 |
 | Cancel print | 22 | 25 |
+| Shutdown | 29 | 5 |
 | Ready LED | 15 | 22 |
 | Busy LED | 16 | 23 |
 
@@ -39,6 +40,9 @@ yours is wired the other way round.
   successful cancel (HTTP 200) also clears the print dead time; 409 means it
   was already too late.
 - Ready LED: a trigger would be accepted. Busy LED: dead time.
+- Shutdown sends SIGINT to self-o-mat after a 3 s hold (`--shutdown-hold`). With
+  `power_off_on_exit: true` in the booth settings file the Pi powers off once the
+  app exits; with it false the app stops but the Pi stays on.
 - Capture is immediate. There is no countdown.
 
 ## Install
