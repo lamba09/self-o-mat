@@ -73,8 +73,10 @@ void exitfunc(int code) {
 
         p_gui = nullptr;
 
-        delete (p_logic);
-        p_logic = nullptr;
+        // Not deleted on purpose: main() is still blocked in p_logic->join(), which reads the
+        // return code and the power off setting once we return from here. Freeing the logic would
+        // make that read land in freed memory and decide at random whether the booth powers off.
+        // We are on the way out of the process anyway, so leaving it alone costs us nothing.
     } else {
         // We have to stop camera and gui ourselves
         if (p_cam != nullptr) {
