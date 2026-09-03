@@ -3,6 +3,9 @@
 //
 #include "BoothLogic.h"
 
+#include <cerrno>
+#include <cstring>
+
 #include "spdlog/sinks/dist_sink.h"
 
 using namespace std;
@@ -331,6 +334,23 @@ void BoothLogic::logicThread() {
 
 BoothLogic::~BoothLogic() {
     free(imageBuffer);
+}
+
+void BoothLogic::powerOff() {
+    LOG_I(TAG, "Powering off the system");
+
+    // The reboot() syscall needs CAP_SYS_BOOT, which we do not have when the booth runs as a
+    // desktop user instead of as root. logind hands the power off to whoever owns the active
+    // session, so ask it first and keep the syscall for the case that we do run as root.
+    int result = system("systemctl poweroff");
+    if (result == 0)
+        return;
+
+    LOG_E(TAG, "systemctl poweroff failed with status: ", std::to_string(result));
+
+    if (reboot(LINUX_REBOOT_CMD_POWER_OFF) == -1) {
+        LOG_E(TAG, "Could not power off the system: ", std::string(strerror(errno)));
+    }
 }
 
 bool BoothLogic::trigger() {

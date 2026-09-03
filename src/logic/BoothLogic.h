@@ -219,6 +219,8 @@ namespace selfomat {
 
             void signalPrintDecisionComplete();
 
+            void powerOff();
+
             timespec triggerStart;
 
             std::list<ImagePrintMetrics> printMetrics;
@@ -255,7 +257,7 @@ namespace selfomat {
                 }
 
                 if (returnCode == -1 && powerOffOnExit) {
-                    reboot(LINUX_REBOOT_CMD_POWER_OFF);
+                    powerOff();
                 }
 
                 return returnCode;
